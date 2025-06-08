@@ -301,7 +301,7 @@ class WeReadWebPage(object):
 
     async def wait_for_selector(self, selector, timeout=30):
         try:
-            return await self._page.waitForSelector(selector, timeout=timeout)
+            return await self._page.waitForSelector(selector, timeout=timeout, visible=True)
         except pyppeteer.errors.TimeoutError as ex:
             html = await self.get_html()
             html_path = "webpage.html"
@@ -568,32 +568,49 @@ class WeReadWebPage(object):
                 raise RuntimeError("Wait for creating markdown timeout")
         return result
 
-    async def _check_next_page(self):
+    async def _check_next_page(self, file_path):
+        page = 0
         while True:
             try:
                 await self.wait_for_selector(
-                    "button.readerFooter_button", timeout=60000
+                    "button.renderTarget_pager_button.renderTarget_pager_button_right", timeout=600000
                 )
             except pyppeteer.errors.TimeoutError:
                 logging.info("[%s] load selector timeout " % self.__class__.__name__)
                 break
+            except Exception:
+                break
             result = await self._page.evaluate(
-                "document.getElementsByClassName('readerFooter_button')[0].innerText;"
+                "document.getElementsByClassName('renderTarget_pager_button_right')[0].innerText;"
             )
+            try:
+                await self._page.waitForSelector("div.toast.toast_Show", timeout=200, visible=True)
+            except Exception:
+                pass # timeout is intended for middle pages
+            else:
+                break
             if result == "下一页":
-                logging.info("[%s] Go to next page" % self.__class__.__name__)
+                logging.info("[%s] Go to next page %d" % (self.__class__.__name__, page))
+                page = page + 1
                 await self._page.evaluate(
                     r"canvasContextHandler.data.markdown += '\n\n';"
                 )
+                markdown = await self.get_markdown()
+                with open(file_path, "ab") as fp:
+                    content = markdown.encode("utf-8", errors="replace")
+                    fp.write(content)
+                await self._page.evaluate("canvasContextHandler.clearMarkdown();")
                 await self.pre_load_page()
-                await self._page.click("button.readerFooter_button")
+                await self._page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+                await self._page.click("button.renderTarget_pager_button.renderTarget_pager_button_right")
                 await asyncio.sleep(1)
             elif result == "下一章":
                 break
             elif result.startswith("登录"):
                 raise utils.LoginRequiredError()
             else:
-                raise NotImplementedError(result)
+                break
+                #raise NotImplementedError(result)
 
     def _get_chapter_url(self, chapter_id):
         return "%s%sk%s" % (
@@ -602,14 +619,14 @@ class WeReadWebPage(object):
             utils.wr_hash(str(chapter_id)),
         )
 
-    async def goto_chapter(self, chapter_id, timeout=120):
+    async def goto_chapter(self, chapter_id, file_path, timeout=120):
         logging.info("[%s] Go to chapter %s" % (self.__class__.__name__, chapter_id))
         # await self.clear_cache()
         await self.pre_load_page()
         self._url = self._get_chapter_url(chapter_id)
         await self._page.goto(self._url, timeout=1000 * timeout)
         try:
-            await self._check_next_page()
+            await self._check_next_page(file_path)
         except utils.LoginRequiredError:
             await self.login()
             return await self.goto_chapter(chapter_id, timeout=timeout)

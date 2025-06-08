@@ -57,6 +57,8 @@ class WeReadExporter(object):
         meta_data = await self._load_meta_data()
         with open(save_path, "w") as fp:
             for index, chapter in enumerate(meta_data["chapters"]):
+                if index > 0:
+                    break
                 file_path = self._make_chapter_path(index, chapter["id"])
                 if not os.path.isfile(file_path):
                     raise RuntimeError("File %s not exist" % file_path)
@@ -66,6 +68,8 @@ class WeReadExporter(object):
     async def pre_process_markdown(self):
         meta_data = await self._load_meta_data()
         for index, chapter in enumerate(meta_data["chapters"]):
+            if index > 0:
+                break
             chapter_path = self._make_chapter_path(index, chapter["id"])
             if not os.path.isfile(chapter_path):
                 logging.warning(
@@ -124,6 +128,8 @@ class WeReadExporter(object):
     async def markdown_to_txt(self, save_path):
         meta_data = await self._load_meta_data()
         for index, chapter in enumerate(meta_data["chapters"]):
+            if index > 0:
+                break
             chapter_path = self._make_chapter_path(index, chapter["id"])
             raw_html = self._markdown_to_html(chapter_path, wrap=False)
             soup = bs4.BeautifulSoup(raw_html, features="html.parser")
@@ -157,6 +163,8 @@ class WeReadExporter(object):
         meta_data = await self._load_meta_data()
         raw_html = '<img src="cover.jpg" style="width: 100%;">\n'
         for index, chapter in enumerate(meta_data["chapters"]):
+            if index > 0:
+                break
             chapter_path = self._make_chapter_path(index, chapter["id"])
             raw_html += self._markdown_to_html(chapter_path, wrap=False)
         raw_html = raw_html.replace(
@@ -219,6 +227,8 @@ class WeReadExporter(object):
         toc = []
         section = None
         for index, chapter in enumerate(meta_data["chapters"]):
+            if index > 0:
+                break
             chapter_path = self._make_chapter_path(index, chapter["id"])
             xhtml_name = "chap_%.4d.xhtml" % (index + 1)
             chap = epub.EpubHtml(
@@ -317,6 +327,8 @@ class WeReadExporter(object):
             await self.save_cover_image()
 
         for index, chapter in enumerate(meta_data["chapters"]):
+            if index > 0:
+                break
             logging.info(
                 "[%s] Check chapter %s/%s"
                 % (self.__class__.__name__, chapter["id"], chapter["title"])
@@ -336,6 +348,7 @@ class WeReadExporter(object):
                     await asyncio.wait_for(
                         self._page.goto_chapter(
                             chapter["id"],
+                            file_path,
                             timeout=timeout,
                         ),
                         timeout=timeout + 60,
@@ -364,12 +377,12 @@ class WeReadExporter(object):
                     "Load chapter %s failed" % chapter["title"]
                 )
 
-            markdown = await self._page.get_markdown()
+            #markdown = await self._page.get_markdown()
             logging.info(
-                "[%s] Export chapter %s to %s"
+                "[%s] Exported chapter %s to %s"
                 % (self.__class__.__name__, chapter["title"], file_path)
             )
-            with open(file_path, "wb") as fp:
-                fp.write(markdown.encode("utf-8", errors="replace"))
+            #with open(file_path, "ab") as fp:
+            #    fp.write(markdown.encode("utf-8", errors="replace"))
 
             await asyncio.sleep(interval)

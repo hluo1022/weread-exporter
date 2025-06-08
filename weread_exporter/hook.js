@@ -62,6 +62,7 @@ let canvasContextHandler = {
     fontColorChanged: false,
     highlightMode: false,
     supMode: false,
+    samePage: true,
   },
   ensureHighlightClosed() {
     if (this.data.highlightMode) {
@@ -101,7 +102,7 @@ let canvasContextHandler = {
   get(target, name) {
     let that = this;
     if (name in target) {
-      // console.log("get", name);
+      console.log("get", name);
       if (target[name] instanceof Function) {
         return function (...args) {
           if (name == "fillText") {
@@ -122,12 +123,12 @@ let canvasContextHandler = {
               if (that.data.highlightMode) {
                 that.data.markdown += "`";
               }
-              that.data.markdown += "<sup>";
+              that.data.markdown += "\n\n";
               that.data.supMode = true;
               that.data.fontSizeChanged = false;
               that.data.fontColorChanged = false;
             } else if (that.data.fontSizeChanged && that.data.supMode) {
-              that.data.markdown += "</sup>";
+              //that.data.markdown += "</sup>";
               if (that.data.highlightMode) {
                 that.data.markdown += "`";
               }
@@ -233,6 +234,9 @@ let canvasContextHandler = {
         }
       }
       this.data.fontColor = value;
+      if (!this.data.samePage) {
+        this.data.highlightMode = false;
+      }
     }
     target[name] = value;
     return true;
@@ -241,21 +245,27 @@ let canvasContextHandler = {
     this.data.preList = [];
     this.data.imgList = [];
     this.data.hrList = [];
-    this.data.markdown = "";
+    this.data.markdown += "\n\n";
     this.data.lastPos = [0, 0];
     this.data.titleMode = false;
-    this.data.highlightMode = false;
+    //this.data.highlightMode = false;
     this.data.fontSize = 0;
     this.data.fontColor = "";
     this.data.fontColorChanged = false;
     this.data.supMode = false;
+    this.data.samePage = true
   },
   updateMarkdown() {
     let imgList = getImgElemList();
     for (let img of imgList) {
       this.data.markdown += "![](" + img[2] + ")\n";
     }
+  },
+  clearMarkdown() {
+    this.data.samePage = false
+    this.data.markdown = ""
   }
+
 }
 
 let origGetContext = HTMLCanvasElement.prototype.getContext;
